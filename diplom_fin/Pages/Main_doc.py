@@ -1,8 +1,6 @@
-import pytest
 import allure
+from diplom_fin.Pages.Main_page import MainPage
 
-
-from Pages.Main_page import MainPage
 
 @allure.suite("Kinopoisk API Tests")
 class TestKinopoiskAPI:
