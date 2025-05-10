@@ -4,7 +4,7 @@ import requests
 class MainPage:
     BASE_URL = "https://api.kinopoisk.dev/v1.4"
 
-    def get_token(user= ' ', password=' '):
+    def get_token(self, user=' ', password=' '):
         creds = {
         'username': user,
         'password': password

@@ -1,94 +1,66 @@
-import unittest
-from selenium import webdriver
-from selenium.webdriver.chrome.service import Service as ChromeService
-from selenium.webdriver.support.ui import WebDriverWait
-from selenium.webdriver.support import expected_conditions as EC
+import pytest
+from allure import feature, story, title
+import re
 
 
-class TestKinopoiskApp(unittest.TestCase):
-    @classmethod
-    def setUpClass(cls):
-        cls.driver = webdriver.Chrome()
-        cls.driver.get("URL_ВАШЕГО_ПРИЛОЖЕНИЯ")
+class User:
+    def __init__(self, email, password):
+        self.email = email
+        self.password = password
 
-    def test_login(self):
-        username_field = WebDriverWait(self.driver, 10).until(
-            EC.visibility_of_element_located((By.NAME, "username"))
-        )
-        password_field = self.driver.find_element(By.NAME, "password")
-        login_button = self.driver.find_element(By.ID, "submit_button")
+class FormValidator:
+    @staticmethod
+    def validate_phone_number(phone):
+        pattern = r"^\+7-\d{3}-\d{3}-\d{2}-\d{2}$"
+        return re.match(pattern, phone) is not None
 
-        username_field.send_keys("логин")
-        password_field.send_keys("пароль")
-        login_button.click()
+    @staticmethod
+    def validate_card_code(card_code):
+        return card_code.isdigit() and len(card_code) == 3
 
-        WebDriverWait(self.driver, 10).until(
-            EC.visibility_of_element_located((By.ID, "welcome_message"))
-        )
-        self.assertIn("Добро пожаловать", self.driver.page_source)
+    @staticmethod
+    def validate_login(email, password):
+        return bool(email) and bool(password)
 
-    def test_invalid_login(self):
+# Тесты
 
-        username_field = WebDriverWait(self.driver, 10).until(
-            EC.visibility_of_element_located((By.NAME, "username"))
-        )
-        password_field = self.driver.find_element(By.NAME, "password")
-        login_button = self.driver.find_element(By.ID, "submit_button")
+@feature("Валидация форм")
+class TestFormValidator:
 
-        username_field.send_keys("неверный_логин")
-        password_field.send_keys("неверный_пароль")
-        login_button.click()
+    @story("Проверка валидности телефонных номеров")
+    @title("Корректный номер телефоне")
+    def test_valid_phone_number(self):
+        assert FormValidator.validate_phone_number("+7-914-712-31-32") == True
 
-        WebDriverWait(self.driver, 10).until(
-            EC.visibility_of_element_located((By.ID, "error_message"))
-        )
-        self.assertIn("Ошибка: неверный логин или пароль", self.driver.page_source)
+    @story("Проверка валидности телефонных номеров")
+    @title("Некорректный номер телефоне")
+    def test_invalid_phone_number(self):
+        assert FormValidator.validate_phone_number("+7-914-712-31-3A") == False
 
-    def test_view_movie_details(self):
+    @story("Проверка кодов карт")
+    @title("Корректный код карты")
+    def test_valid_card_code(self):
+        assert FormValidator.validate_card_code("123") == True
 
-        movie_link = WebDriverWait(self.driver, 10).until(
-            EC.element_to_be_clickable((By.LINK_TEXT, "Матрица"))
-        )
-        movie_link.click()
+    @story("Проверка кодов карт")
+    @title("Некорректный код карты")
+    def test_invalid_card_code(self):
+        assert FormValidator.validate_card_code("12A") == False
 
-        # Ожидаем отображение информации о фильме
-        WebDriverWait(self.driver, 10).until(
-            EC.visibility_of_element_located((By.ID, "movie_details"))
-        )
-        self.assertIn("Информация о фильме", self.driver.page_source)
+    @story("Проверка логина пользователя")
+    @title("Валидный логин")
+    def test_valid_login(self):
+        user = User("Pozd-L@bk.ru", "strong_password")
+        assert FormValidator.validate_login(user.email, user.password) == True
 
-    def test_search_movie(self):
-        # Тест на поиск фильма
-        search_field = WebDriverWait(self.driver, 10).until(
-            EC.visibility_of_element_located((By.NAME, "search"))
-        )
-        search_button = self.driver.find_element(By.ID, "search_button")
+    @story("Проверка логина пользователя")
+    @title("Недостаточный логин")
+    def test_invalid_login_empty_email(self):
+        user = User("", "strong_password")
+        assert FormValidator.validate_login(user.email, user.password) == False
 
-        search_field.send_keys("Матрица")
-        search_button.click()
-
-        # Ожидаем отображение результатов поиска
-        WebDriverWait(self.driver, 10).until(
-            EC.visibility_of_element_located((By.CLASS_NAME, "search_results"))
-        )
-        self.assertIn("Матрица", self.driver.page_source)
-
-    def test_logout(self):
-        # Тест на выход из системы
-        logout_button = WebDriverWait(self.driver, 10).until(
-            EC.element_to_be_clickable((By.ID, "logout_button"))
-        )
-        logout_button.click()
-
-        # Ожидаем, что пользователь был выведен
-        WebDriverWait(self.driver, 10).until(
-            EC.visibility_of_element_located((By.ID, "login_page"))
-        )
-        self.assertIn("Вход", self.driver.page_source)
-
-    @classmethod
-    def tearDownClass(cls):
-        cls.driver.quit()
-
-if __name__ == "__main__":
-    unittest.main()
+    @story("Проверка логина пользователя")
+    @title("Недостаточный логин")
+    def test_invalid_login_empty_password(self):
+        user = User("Pozd-L@bk.ru", "")
+        assert FormValidator.validate_login(user.email, user.password) == False
