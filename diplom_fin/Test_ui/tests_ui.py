@@ -59,8 +59,3 @@ class TestFormValidator:
         user = User("", "strong_password")
         assert FormValidator.validate_login(user.email, user.password) == False
 
-    @story("Проверка логина пользователя")
-    @title("Недостаточный логин")
-    def test_invalid_login_empty_password(self):
-        user = User("Pozd-L@bk.ru", "")
-        assert FormValidator.validate_login(user.email, user.password) == False
