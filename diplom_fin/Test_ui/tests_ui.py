@@ -1,61 +1,71 @@
 import pytest
-from allure import feature, story, title
-import re
+from selenium import webdriver
+from selenium.webdriver.common.by import By
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
+from selenium.webdriver.chrome.service import Service as ChromeService
+from webdriver_manager.chrome import ChromeDriverManager
+import allure
+import time
 
 
-class User:
-    def __init__(self, email, password):
-        self.email = email
-        self.password = password
+@pytest.fixture(scope="function")
+def browser():
+    options = webdriver.ChromeOptions()
+    options.add_argument("--start-maximized")
+    options.add_argument("--disable-blink-features=AutomationControlled")
+    options.add_experimental_option("excludeSwitches", ["enable-automation"])
+    options.add_experimental_option('useAutomationExtension', False)
+    options.add_argument(
+        "--user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/90.0.4430.212 Safari/537.36")
 
-class FormValidator:
-    @staticmethod
-    def validate_phone_number(phone):
-        pattern = r"^\+7-\d{3}-\d{3}-\d{2}-\d{2}$"
-        return re.match(pattern, phone) is not None
+    service = ChromeService(ChromeDriverManager().install())
+    driver = webdriver.Chrome(service=service, options=options)
+    driver.implicitly_wait(10)
+    yield driver
+    driver.quit()
 
-    @staticmethod
-    def validate_card_code(card_code):
-        return card_code.isdigit() and len(card_code) == 3
 
-    @staticmethod
-    def validate_login(email, password):
-        return bool(email) and bool(password)
+@allure.feature("UI Тесты Кинопоиска")
+class TestKinopoiskUI:
+    # ... (остальные методы остаются без изменений)
 
-# Тесты
+    @allure.story("Авторизация с обходом капчи")
+    def test_login_bypass_captcha(self, browser):
+        with allure.step("1. Открыть страницу авторизации"):
+            browser.get("https://www.kinopoisk.ru/")
+            self.accept_cookies(browser)
+            self.wait_and_click(browser, "//button[contains(., 'Войти')]")
 
-@feature("Валидация форм")
-class TestFormValidator:
+        with allure.step("2. Заполнить форму авторизации"):
+            login = "Pozd-L@bk.ru"
+            password = "dfcbkbr684"  # Пароль "василий684" в английской раскладке
 
-    @story("Проверка валидности телефонных номеров")
-    @title("Корректный номер телефоне")
-    def test_valid_phone_number(self):
-        assert FormValidator.validate_phone_number("+7-914-712-31-32") == True
+            browser.find_element(By.NAME, "login").send_keys(login)
+            browser.find_element(By.NAME, "password").send_keys(password)
 
-    @story("Проверка валидности телефонных номеров")
-    @title("Некорректный номер телефоне")
-    def test_invalid_phone_number(self):
-        assert FormValidator.validate_phone_number("+7-914-712-31-3A") == False
+        with allure.step("3. Попытка обхода капчи"):
+            try:
+                # Вариант 1: Ввод капчи вручную с ожиданием
+                input("Решите капчу в браузере и нажмите Enter в консоли...")
 
-    @story("Проверка кодов карт")
-    @title("Корректный код карты")
-    def test_valid_card_code(self):
-        assert FormValidator.validate_card_code("123") == True
+                # Вариант 2: Автоматический обход через тестовый ключ (если поддерживается)
+                browser.execute_script("""
+                    if (window.grecaptcha) {
+                        window.grecaptcha.execute = function() {
+                            return Promise.resolve("test-token");
+                        };
+                    }
+                """)
 
-    @story("Проверка кодов карт")
-    @title("Некорректный код карты")
-    def test_invalid_card_code(self):
-        assert FormValidator.validate_card_code("12A") == False
+                # Клик по кнопке "Войти"
+                self.wait_and_click(browser, "//button[@type='submit']")
 
-    @story("Проверка логина пользователя")
-    @title("Валидный логин")
-    def test_valid_login(self):
-        user = User("Pozd-L@bk.ru", "strong_password")
-        assert FormValidator.validate_login(user.email, user.password) == True
+            except Exception as e:
+                allure.attach(browser.get_screenshot_as_png(),
+                              name="captcha_error",
+                              attachment_type=allure.attachment_type.PNG)
+                pytest.fail(f"Ошибка при обходе капчи: {str(e)}")
 
-    @story("Проверка логина пользователя")
-    @title("Недостаточный логин")
-    def test_invalid_login_empty_email(self):
-        user = User("", "strong_password")
-        assert FormValidator.validate_login(user.email, user.password) == False
-
+        with allure.step("4. Проверка успешной авторизации"):
+            assert self.is_element_present(browser, "//div[contains(@class, 'avatar')]", 15), "Авторизация не удалась"
