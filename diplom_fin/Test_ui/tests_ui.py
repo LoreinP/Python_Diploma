@@ -41,7 +41,7 @@ def test_negative_search_by_producer(browser):
     with allure.step("Проверка выпадающего списка"):
         assert browser.find_element(By.ID, "suggest-item-person-23329").is_displayed()
 
-def test_negative_search_by_actor(browser):
+def test_negative_search_by_actor2(browser):
     with allure.step("Открыть страницу кинопоиска"):
         browser.get("https://www.kinopoisk.ru/")
         browser.find_element(By.NAME, "kp_query").send_keys("Лоренс Фишберн")
